@@ -187,8 +187,8 @@ body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#f8
       <button class="cal-btn active" id="btn-solar">☀️ 양력</button>
       <button class="cal-btn" id="btn-lunar">🌙 음력</button>
     </div>
-    <div class="fgroup"><label>이름</label>
-      <input class="finput" id="f-name" type="text" value="멋진 박쌤" placeholder="이름"></div>
+    <div class="fgroup"><label>이름 (입력하시면 결과지에 자동 반영됩니다)</label>
+      <input class="finput" id="f-name" type="text" placeholder="진단받을 분의 이름을 입력하세요"></div>
     <div class="fgroup"><label id="lbl-date">생년월일 (양력)</label>
       <div class="date-row">
         <input class="finput" id="f-year" type="number" placeholder="년도(1930~2010)" min="1930" max="2010">
@@ -723,8 +723,33 @@ function buildResult(name,gdr,year,month,day,hour,origYMD){
   H+='하늘이 주신 팔자는 청사진이지 감옥이 아닙니다. 박쌤의 인생은 박쌤이 만드는 것입니다.</p>';
   H+='</div></div>';
 
+  // ★ 이름 자동 치환 — "박쌤"이 아닌 다른 이름이면 모두 치환 + 한국어 조사 처리
+  if (name && name.indexOf('박쌤') === -1) {
+    H = applyName(H, name);
+  }
   document.getElementById('result-body').innerHTML=H;
   setTimeout(initQA,80);
+}
+
+// 한국어 조사 자동 처리 + 이름 치환
+function applyName(html, name) {
+  function hasFinal(s) {
+    if (!s) return false;
+    var ch = s.charCodeAt(s.length - 1);
+    if (ch < 0xAC00 || ch > 0xD7A3) return false;
+    return ((ch - 0xAC00) % 28) !== 0;
+  }
+  var hf = hasFinal(name);
+  var rules = [
+    [/박쌤은/g, name + (hf ? '은' : '는')],
+    [/박쌤이/g, name + (hf ? '이' : '가')],
+    [/박쌤을/g, name + (hf ? '을' : '를')],
+    [/박쌤과/g, name + (hf ? '과' : '와')],
+    [/박쌤이여/g, name + (hf ? '이여' : '여')],
+    [/박쌤/g, name]
+  ];
+  rules.forEach(function(r) { html = html.replace(r[0], r[1]); });
+  return html;
 }
 
 // 헬퍼
@@ -813,8 +838,9 @@ function askFree(){
   });
   hits.sort(function(a,b){return b.s-a.s});
   if(hits.length===0){
+    var d=window._sajuD;var nm=(d&&d.name)?d.name:'박쌤';
     document.getElementById('qa-answer').style.display='block';
-    document.getElementById('qa-answer').innerHTML='<div class="dark-card"><h3>💬 박쌤의 질문: "'+q+'"</h3><p>이 질문에 직접 매칭되는 분야를 찾지 못했습니다. 아래 16개 카드 중에서 가장 가까운 분야를 클릭하시거나, 다음과 같은 키워드로 다시 시도해보세요.</p><p>💡 <strong>예시:</strong> 결혼시기 / 이직 타이밍 / 올해 재물운 / 자녀운 / 부동산 / 부모님 건강 / 인간관계 / 향후 3년</p></div>';
+    document.getElementById('qa-answer').innerHTML='<div class="dark-card"><h3>💬 '+nm+'의 질문: "'+q+'"</h3><p>이 질문에 직접 매칭되는 분야를 찾지 못했습니다. 아래 16개 카드 중에서 가장 가까운 분야를 클릭하시거나, 다음과 같은 키워드로 다시 시도해보세요.</p><p>💡 <strong>예시:</strong> 결혼시기 / 이직 타이밍 / 올해 재물운 / 자녀운 / 부동산 / 부모님 건강 / 인간관계 / 향후 3년</p></div>';
     return;
   }
   document.querySelectorAll('.qa-card').forEach(function(c){c.classList.toggle('active',c.getAttribute('data-topic')===hits[0].t.id)});
@@ -827,8 +853,14 @@ function showAns(id,userQ){
   var ans=genAnswer(id,d);
   var box=document.getElementById('qa-answer');
   box.style.display='block';
-  var head=userQ?'💬 박쌤의 질문: "'+userQ+'"':topic.icon+' '+topic.title;
-  box.innerHTML='<div class="dark-card"><h3>'+head+'</h3>'+ans+'</div>';
+  var nm=d.name||'박쌤';
+  var head=userQ?'💬 '+nm+'의 질문: "'+userQ+'"':topic.icon+' '+topic.title;
+  var inner='<div class="dark-card"><h3>'+head+'</h3>'+ans+'</div>';
+  // ★ 답변 안의 박쌤도 입력 이름으로 치환
+  if (d.name && d.name.indexOf('박쌤') === -1) {
+    inner = applyName(inner, d.name);
+  }
+  box.innerHTML=inner;
   setTimeout(function(){box.scrollIntoView({behavior:'smooth',block:'start'})},80);
 }
 
